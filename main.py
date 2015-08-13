@@ -23,7 +23,6 @@ from time import sleep
 from twx.botapi import TelegramBot
 import json
 import requests
-import uptime
 
 __author__ = "NotoriousDev Team"
 __copyright__ = "Copyright 2015, NotoriousDev"
@@ -76,21 +75,6 @@ def loop():
 
             if cmd == '/ping':
                 bot.send_message(chat_id, 'Pong!').wait()
-
-            if cmd == '/uptime':
-                bot.send_message(chat_id, str(timedelta(seconds=uptime.uptime())).rsplit('.', 1)[0]).wait()
-
-            if cmd == '/idme':
-                bot.send_message(chat_id, '%s, your user ID is %s' % (sender.first_name, sender.id)).wait()
-
-            if cmd == '/mcstatus':
-                status = requests.get('http://status.mojang.com/check').text
-                status = json.loads(status)
-                message = '-- Mojang Service Status --\n\n'
-                for i in status:
-                    k, v = list(i.items())[0]
-                    message += "%s: %s\n" % (k, v.replace('green', u'✅').replace('red', u'🚫').replace('yellow', u'⚠️'))
-                bot.send_message(chat_id, message, True).wait()
 
 if __name__ == '__main__':
     while True:
