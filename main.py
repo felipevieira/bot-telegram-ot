@@ -24,7 +24,6 @@ from twx.botapi import TelegramBot
 import json
 import requests
 import uptime
-import imdb
 
 __author__ = "NotoriousDev Team"
 __copyright__ = "Copyright 2015, NotoriousDev"
@@ -92,18 +91,6 @@ def loop():
                     k, v = list(i.items())[0]
                     message += "%s: %s\n" % (k, v.replace('green', u'✅').replace('red', u'🚫').replace('yellow', u'⚠️'))
                 bot.send_message(chat_id, message, True).wait()
-
-            if cmd == '/imdb':
-                if args is None:
-                    bot.send_message(chat_id, "Usage: /imdb <search_terms>").wait()
-                    continue
-                search_terms = ''.join(args)
-                ia = imdb.IMDb()
-                s_result = ia.search_movie(search_terms)
-                movie = s_result[0]
-                ia.update(movie)
-                bot.send_message(chat_id, movie.summary()).wait()
-
 
 if __name__ == '__main__':
     while True:
