@@ -1,85 +1,160 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-'''
-This file is part of RogueTG.
-
-RogueTG is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-RogueTG is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with RogueTG.  If not, see <http://www.gnu.org/licenses/>.
-'''
-
-from datetime import timedelta
-from time import sleep
-from twx.botapi import TelegramBot
+import StringIO
 import json
-import requests
+import logging
+import random
+import urllib
+import urllib2
 
-__author__ = "NotoriousDev Team"
-__copyright__ = "Copyright 2015, NotoriousDev"
-__license__ = "GPL"
-__version__ = "0.1"
-__maintainer__ = "NotoriousDev Team"
-__email__ = "dev@notoriousdev.com"
+# for sending images
+from PIL import Image
+import multipart
+
+# standard app engine imports
+from google.appengine.api import urlfetch
+from google.appengine.ext import ndb
+import webapp2
+
+TOKEN = '117251827:AAGOmVJJ42BTiu5gB4J28bMSP7SO2BJ-tXY'
+
+BASE_URL = 'https://api.telegram.org/bot' + TOKEN + '/'
+
+BOT_USERNAME = 'OFFThreadBot'
+
+# ================================
+
+class EnableStatus(ndb.Model):
+    # key name: str(chat_id)
+    enabled = ndb.BooleanProperty(indexed=False, default=False)
 
 
-try:
-    import config
-except:
-    print "Config not found! Please copy config.py.dist to config.py and edit the values as necessary."
-    exit(1)
+# ================================
 
-last_update = 0
+def setEnabled(chat_id, yes):
+    es = EnableStatus.get_or_insert(str(chat_id))
+    es.enabled = yes
+    es.put()
 
-bot = TelegramBot(config.BOT_API_KEY)
-bot.update_bot_info().wait()
-
-updates = bot.get_updates().wait()
-if updates is not None:
-    for update in updates:
-        if update.update_id > last_update:
-            last_update = update.update_id
+def getEnabled(chat_id):
+    es = EnableStatus.get_by_id(str(chat_id))
+    if es:
+        return es.enabled
+    return False
 
 
-def loop():
-    global last_update
-    global bot
-    updates = bot.get_updates().wait()
-    if updates is not None:
-        for update in updates:
-            if update is None:
-                continue
-            if update.update_id is None:
-                continue
-            if update.update_id <= last_update:
-                continue
-            if update.message.text is None:
-                continue
+# ================================
 
-            print update
-            last_update = update.update_id
-            text_split = update.message.text.split(' ')
-            cmd = text_split[0].split("@")[0]
-            args = text_split[1:] or None
-            chat_id = update.message.chat.id
-            sender = update.message.sender
+class MeHandler(webapp2.RequestHandler):
+    def get(self):
+        urlfetch.set_default_fetch_deadline(60)
+        self.response.write(json.dumps(json.load(urllib2.urlopen(BASE_URL + 'getMe'))))
 
-            if cmd == '/ping':
-                bot.send_message(chat_id, 'Pong!').wait()
 
-if __name__ == '__main__':
-    while True:
-        sleep(0.5)
-        try:
-            loop()
-        except:
-            continue
+class GetUpdatesHandler(webapp2.RequestHandler):
+    def get(self):
+        urlfetch.set_default_fetch_deadline(60)
+        self.response.write(json.dumps(json.load(urllib2.urlopen(BASE_URL + 'getUpdates'))))
+
+
+class SetWebhookHandler(webapp2.RequestHandler):
+    def get(self):
+        urlfetch.set_default_fetch_deadline(60)
+        url = self.request.get('url')
+        if url:
+            self.response.write(json.dumps(json.load(urllib2.urlopen(BASE_URL + 'setWebhook', urllib.urlencode({'url': url})))))
+
+
+class WebhookHandler(webapp2.RequestHandler):
+    def post(self):
+        urlfetch.set_default_fetch_deadline(60)
+        body = json.loads(self.request.body)
+        logging.info('request body:')
+        logging.info(body)
+        self.response.write(json.dumps(body))
+
+        update_id = body['update_id']
+        message = body['message']
+        message_id = message.get('message_id')
+        date = message.get('date')
+        text = message.get('text')
+        fr = message.get('from')
+        chat = message['chat']
+        chat_id = chat['id']
+
+        if not text:
+            logging.info('no text')
+            return
+
+        def reply(msg=None, img=None):
+            if msg:
+                resp = urllib2.urlopen(BASE_URL + 'sendMessage', urllib.urlencode({
+                    'chat_id': str(chat_id),
+                    'text': msg.encode('utf-8'),
+                    'disable_web_page_preview': 'true',
+                    'reply_to_message_id': str(message_id),
+                })).read()
+            elif img:
+                resp = multipart.post_multipart(BASE_URL + 'sendPhoto', [
+                    ('chat_id', str(chat_id)),
+                    ('reply_to_message_id', str(message_id)),
+                ], [
+                    ('photo', 'image.jpg', img),
+                ])
+            else:
+                logging.error('no msg or img specified')
+                resp = None
+
+            logging.info('send response:')
+            logging.info(resp)
+
+        def hasCommand(text, command):
+            text = text.split(' ')[0]
+            if '@' in text and BOT_USERNAME != text.split('@')[1]:
+                return False
+            if command == text.split('@')[0]:
+                return True
+            return False
+
+        if text.startswith('/'):
+            if hasCommand(text, '/start'):
+                reply('Bot enabled')
+                setEnabled(chat_id, True)
+            elif hasCommand(text, '/stop'):
+                reply('Bot disabled')
+                setEnabled(chat_id, False)
+            elif hasCommand(text, '/image'):
+                img = Image.new('RGB', (512, 512))
+                base = random.randint(0, 16777216)
+                pixels = [base+i*j for i in range(512) for j in range(512)]  # generate sample image
+                img.putdata(pixels)
+                output = StringIO.StringIO()
+                img.save(output, 'JPEG')
+                reply(img=output.getvalue())
+            elif hasCommand(text, '/ping'):
+                reply('Pong!')
+
+        elif 'who are you' in text:
+            reply(BOT_USERNAME + ' criado pela OFFThread utilizando o telebot starter kit, created by yukuku: https://github.com/yukuku/telebot')
+        elif 'what time' in text:
+            reply('Olhe para o canto direito de cima da sua tela!')
+        else:
+            if getEnabled(chat_id):
+                try:
+                    resp1 = json.load(urllib2.urlopen('http://www.simsimi.com/requestChat?lc=en&ft=1.0&req=' + urllib.quote_plus(text.encode('utf-8'))))
+                    back = resp1.get('res')
+                except urllib2.HTTPError, err:
+                    logging.error(err)
+                    back = str(err)
+                if not back:
+                    reply('okay...')
+                else:
+                    reply(back)
+            else:
+                logging.info('not enabled for chat_id {}'.format(chat_id))
+
+
+app = webapp2.WSGIApplication([
+    ('/me', MeHandler),
+    ('/updates', GetUpdatesHandler),
+    ('/set_webhook', SetWebhookHandler),
+    ('/webhook', WebhookHandler),
+], debug=True)
