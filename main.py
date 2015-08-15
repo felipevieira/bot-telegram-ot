@@ -136,6 +136,28 @@ class WebhookHandler(webapp2.RequestHandler):
             reply(BOT_USERNAME + ' criado pela OFFThread utilizando o telebot starter kit, created by yukuku: https://github.com/yukuku/telebot')
         elif 'what time' in text:
             reply('Olhe para o canto direito de cima da sua tela!')
+        elif 'amaury medeiros' in text.lower():
+            reply('Transao! #google') #Deu pau com o ascii quando escrevi transao com o til. Tem que ver aqui o que foi...
+        elif 'arthur souza' in text.lower():
+            reply('H2O2! #comendoaline')
+        elif 'daniel gondim' in text.lower():
+            reply('Infiel! #sextamaluca')
+        elif 'danilo freitas' in text.lower():
+            reply('Gosto de comida, maconha e amizades! #friendzone')
+        elif 'diego maia' in text.lower():
+            reply('Quem?! #desconhecido #intruso')
+        elif 'felipe vieira' in text.lower():
+            reply('Maconheiro! #sextamaluca')
+        elif 'filipe costa' in text.lower():
+            reply('Rei de auri! #sextamaluca')
+        elif 'lenin medeiros' in text.lower():
+            reply('Adora comida japonesa! #dominado #benino')
+        elif 'matheus brasileiro' in text.lower():
+            reply('! #comeuanne')
+        elif 'paulo ouriques' in text.lower():
+            reply('Husky Cibellyano! #sextamaluca #meusbeninos')
+        elif 'silvio leoterio' in text.lower():
+            reply('V1d4l0k4! #semanamaluca #minhafacisaminhavida')
         else:
             if getEnabled(chat_id):
                 try:
