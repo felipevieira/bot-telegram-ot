@@ -1,3 +1,8 @@
+# OFF Thread Telegam Bot
+
+Bot created for OFF Thread group based on Telegram Bot starter kit.
+
+
 # telebot
 Telegram Bot starter kit. Very easy to install with Google App Engine.
 
